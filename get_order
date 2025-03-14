@@ -78,13 +78,3 @@ def get_orders(self, latest_timestamp, latest_bar, latest_signal, asset_info):
                                     symbol=symbol))
 
     return order_lst
-
-#以下、実際のオーダーリスト
-order_list = []
-order = Order(type="MARKET",
-              side="BUY",
-              size=1,
-              price=None,
-              symbol="BTCUSDT")
-order_list.append(order)
-print(order_list)
