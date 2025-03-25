@@ -1,0 +1,33 @@
+import os
+import gzip
+import datetime
+import pandas as pd
+import time
+from time import sleep
+from urllib import request
+from dataclasses import dataclass
+import numpy as np
+import matplotlib.pyplot as plt
+from tqdm.notebook import tqdm
+
+# 今回の講義で新しく使用するライブラリ
+import copy
+import sys
+import math
+import pickle
+from scipy.stats import ttest_1samp
+import japanize_matplotlib
+import optuna
+from typing import NamedTuple, Optional
+import warnings
+import glob
+import shutil
+warnings.filterwarnings('ignore')
+
+# コンペで使用する独自のライブラリ
+from mlbacktester import Order, BaseStrategy, Scoring
+from mlbacktester.bt import BackTester
+from mlbacktester.utils.custom_types import AssetInfo
+
+optuna.logging.set_verbosity(optuna.logging.WARNING)
+%matplotlib inline
