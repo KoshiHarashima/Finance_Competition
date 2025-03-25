@@ -1,4 +1,10 @@
 import os
+
+import subprocess
+import sys
+# shapライブラリをインストール
+import shap
+
 import gzip
 import datetime
 import pandas as pd
@@ -10,7 +16,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.notebook import tqdm
 
-# 今回の講義で新しく使用するライブラリ
+# 指定されたライブラリ
 import copy
 import sys
 import math
@@ -29,5 +35,8 @@ from mlbacktester import Order, BaseStrategy, Scoring
 from mlbacktester.bt import BackTester
 from mlbacktester.utils.custom_types import AssetInfo
 
-optuna.logging.set_verbosity(optuna.logging.WARNING)
-%matplotlib inline
+#追加
+import pandas_ta as ta
+
+#seedを固定
+np.random.seed(42)
