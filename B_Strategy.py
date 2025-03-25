@@ -1,62 +1,34 @@
 # A_Library から必要なシンボルをインポート
 from A_Library import pd, np, math, optuna, MinMaxScaler, BaseStrategy, Order
 
-
 class Strategy(BaseStrategy):
     def __init__(self, config):
         super().__init__(config)
         self.cfg = config
-        # 各シンボルごとの最適パラメータを保持する辞書
         self.optimized_params = {}
-        # シグナルの正規化用スケーラー（ここでは利用例）
         self.scaler = MinMaxScaler(feature_range=(-1, 1))
 
     def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        前処理関数
-         - 対数変換、差分処理を実施して非定常性を解消
-         - シンボルごとにSMAなどのテクニカル指標を算出（例示）
-         - 最新の行（未来情報）は削除しない
-        """
         preprocessed_df = df.copy()
         symbols = preprocessed_df.index.get_level_values('symbol').unique()
         for symbol in symbols:
-            # 各シンボルごとのデータ抽出
             symbol_df = preprocessed_df.xs(symbol, level='symbol')
-            # 対数変換（例：close価格）
             symbol_df['log_close'] = np.log(symbol_df['close'])
-            # 差分処理（1期間差分）
             symbol_df['diff_log_close'] = symbol_df['log_close'].diff()
-            # シンプルなSMA（例：20期間）
             symbol_df['sma_20'] = symbol_df['close'].rolling(window=20).mean()
-            # 計算結果を元データに反映（インデックスの整合性に注意）
             preprocessed_df.update(symbol_df)
-        # 欠損値は直前の値で補完（未来情報の参照はしない）
         preprocessed_df.fillna(method='ffill', inplace=True)
         return preprocessed_df
 
     def objective(self, trial, train_df: pd.DataFrame, symbol: str):
-        """
-        Optunaによる目的関数の例
-         - ここでは、シンプルにSMAのウィンドウ長（期間）を最適化対象とする
-         - 実際の評価では、バックテスト結果（シャープレシオなど）を用いるとよい
-        """
         sma_window = trial.suggest_int("sma_window", 10, 50)
-        # シンボルごとのデータ抽出
         symbol_df = train_df.xs(symbol, level='symbol')
         sma = symbol_df['close'].rolling(window=sma_window).mean()
-        # シグナルの仮の算出：現在の価格とSMAとの差分の比率
         signal = (symbol_df['close'] - sma) / sma
-        # ここでは、シグナルの平均絶対誤差を小さくする（実際はバックテストパフォーマンス評価）
         score = -np.nanmean(np.abs(signal))
         return score
 
     def get_model(self, train_df: pd.DataFrame):
-        """
-        モデル構築（パラメータ最適化）
-         - 各シンボルごとにOptunaを用いて、テクニカル指標（ここではSMAの期間）の最適値を求める
-         - 結果を辞書形式で返す
-        """
         symbols = train_df.index.get_level_values('symbol').unique()
         best_params = {}
         for symbol in symbols:
@@ -64,78 +36,36 @@ class Strategy(BaseStrategy):
             study.optimize(lambda trial: self.objective(trial, train_df, symbol), n_trials=20)
             best_params[symbol] = study.best_params
         self.optimized_params = best_params
-        # ここでは、モデルは最適パラメータの辞書とする
         return best_params
 
     def get_signal(self, preprocessed_df: pd.DataFrame, model: dict) -> pd.DataFrame:
-        """
-        シグナル生成
-         - 各シンボルごとに、get_modelで得た最適パラメータを用いてシグナルを算出
-         - 例：SMAを利用したシグナルを算出し、順位変換とスケーリングにより-1〜1に正規化
-        """
         signal_list = []
         symbols = preprocessed_df.index.get_level_values('symbol').unique()
         for symbol in symbols:
             symbol_df = preprocessed_df.xs(symbol, level='symbol').copy()
-            # 最適パラメータ取得（存在しない場合はデフォルト値20）
             params = model.get(symbol, {})
             sma_window = params.get("sma_window", 20)
-            # SMAの算出
             symbol_df['sma'] = symbol_df['close'].rolling(window=sma_window).mean()
-            # 生のシグナル：価格とSMAとの差を正規化（シンプルな例）
             symbol_df['raw_signal'] = (symbol_df['close'] - symbol_df['sma']) / symbol_df['sma']
-            # ランク変換による補正（0〜1の割合に変換）
             symbol_df['rank_signal'] = symbol_df['raw_signal'].rank(pct=True)
-            # 0〜1の値を-1〜1の範囲に変換
             symbol_df['signal'] = symbol_df['rank_signal'] * 2 - 1
-            # 必要なカラム（例：signal）だけ抽出
             signal_list.append(symbol_df[['signal']])
-        # 各シンボルの結果を統合（シンボルをキーにしてマルチインデックスにする例）
         signal_df = pd.concat(signal_list, keys=symbols, names=['symbol'])
         return signal_df
 
-    def get_orders(self, latest_timestamp, latest_bar, latest_signal, asset_info): #※注意: 変更せずに使用してください
-        """
-        注文時刻，その時刻におけるポジションの状況，OHLCVから得たシグナルを元に注文を作成する関数
-
-        Parameters
-        ==========
-        latest_timestamp: pandas.Timestamp
-            注文を出す時刻
-        latest_bar: pandas.Series
-            注文を出す時刻のOHLCVデータ(加工前のデータ)
-        latest_signal: pandas.Series
-            注文を出す時刻のシグナルデータ(get_signal関数により作成されたデータ)
-        asset_info: dict
-            注文時における資産の情報が格納された辞書
-
-        Returns
-        =======
-        order_lst: list (中身はOrderクラス)
-            current_timeにおける注文情報が格納されている
-            'type','side','size','price'の４項目
-        """
-
+    def get_orders(self, latest_timestamp, latest_bar, latest_signal, asset_info):
         order_lst = []
-        d = 0.35  # 離散化の程度
-        size_ratio = {"BTCUSDT": 0.1, "ETHUSDT": 1.5, "XRPUSDT": 4000}  # BTC:ETH:XRP の注文サイズ比
-
-        # 各シンボルのボラティリティからリスクウェイトを計算
+        d = 0.35
+        size_ratio = {"BTCUSDT": 0.1, "ETHUSDT": 1.5, "XRPUSDT": 4000}
         volatilities = {symbol: latest_signal.loc[(slice(None), symbol), :].iloc[0]["volatility"]
                         for symbol in self.cfg["backtester_config"]["symbol"]}
         total_inv_vol = sum(1 / vol for vol in volatilities.values())
         risk_weights = {symbol: (1 / vol) / total_inv_vol for symbol, vol in volatilities.items()}
 
         for symbol in self.cfg["backtester_config"]["symbol"]:
-            # シンボルごとの最新のシグナルとOHLCVデータを取得
             latest_signal_symbol = latest_signal.loc[(slice(None), symbol), :].iloc[0]
             latest_bar_symbol = latest_bar.loc[(slice(None), symbol), :].iloc[0]
-
-            # 現在のポジションサイズを取得
             pos_size = asset_info.signed_pos_sizes[symbol]
-            total_pos_abs = abs(pos_size)
-
-            # シグナルと離散化の程度を基に目標ポジションサイズを計算
             signal_value = latest_signal_symbol['signal']
             if pd.isna(signal_value):
                 signal_value = 0.0
@@ -144,7 +74,6 @@ class Strategy(BaseStrategy):
             else:
                 target_position_size = math.ceil(signal_value / d) * 0.5
 
-            # 目標ポジションサイズに応じて年率リスクターゲットを設定
             match target_position_size:
                 case 1:
                     annualized_risk_target = 0.5
@@ -157,20 +86,15 @@ class Strategy(BaseStrategy):
                 case _:
                     annualized_risk_target = 0
 
-            # シンボルごとの最新ボラティリティを取得
             relevant_vola = latest_signal_symbol["volatility"]
-
-            # リスクウェイトとサイズ比を考慮して目標サイズを計算
             target_size = (annualized_risk_target / relevant_vola) * size_ratio[symbol] * risk_weights[symbol]
             order_size = target_size - pos_size
             side = "BUY" if order_size > 0 else "SELL"
 
-            # 最小取引単位を満たす場合のみ注文を追加
             if abs(order_size) >= self.cfg["exchange_config"][symbol]["min_lot"]:
                 order_lst.append(Order(type="MARKET",
                                         side=side,
                                         size=abs(order_size),
                                         price=None,
                                         symbol=symbol))
-
         return order_lst
