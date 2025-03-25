@@ -1,13 +1,4 @@
 import os
-
-import subprocess
-import sys
-import shap
-subprocess.run(["pip", "install", "-r", "requirements-v0.0.12.txt"], check=True)
-subprocess.run(["pip", "install", "./mlbacktester-0.0.12-py3-none-any.whl"], check=True)
-
-optuna.logging.set_verbosity(optuna.logging.WARNING)
-
 import gzip
 import datetime
 import pandas as pd
@@ -33,7 +24,30 @@ import glob
 import shutil
 warnings.filterwarnings('ignore')
 
-# コンペで使用する独自のライブラリ
+"""
+このモジュールは、プロジェクトで使用する共通ライブラリの import を一元管理するためのものです。
+他のモジュールはここから必要なライブラリやクラスを import できます。
+"""
+
+import os
+import sys
+import subprocess
+import math
+import pickle
+import warnings
+import glob
+import shutil
+import datetime
+import gzip
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import optuna
+import japanize_matplotlib
+import pandas_ta as ta
+from sklearn.preprocessing import MinMaxScaler
+
+# mlbacktester 関連のインポート（すでにインストール済み前提）
 from mlbacktester import Order, BaseStrategy, Scoring
 from mlbacktester.bt import BackTester
 from mlbacktester.utils.custom_types import AssetInfo
