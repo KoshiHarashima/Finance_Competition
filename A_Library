@@ -2,8 +2,11 @@ import os
 
 import subprocess
 import sys
-# shapライブラリをインストール
 import shap
+subprocess.run(["pip", "install", "-r", "requirements-v0.0.12.txt"], check=True)
+subprocess.run(["pip", "install", "./mlbacktester-0.0.12-py3-none-any.whl"], check=True)
+
+optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 import gzip
 import datetime
