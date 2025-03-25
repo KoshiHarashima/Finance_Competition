@@ -1,3 +1,7 @@
+# A_Library から必要なシンボルをインポート
+from A_Library import pd, np, math, optuna, MinMaxScaler, BaseStrategy, Order
+
+
 class Strategy(BaseStrategy):
     def __init__(self, config):
         super().__init__(config)
