@@ -37,8 +37,6 @@ def calculate_adx(df, period=14):
 	df.loc[(symbol_df.index, symbol), :] = symbol_df.values
     return df
 
-symbol_df = calculate_adx(symbol_df, period=14)
-
 # 6. PSAR（Parabolic SAR）の計算
 def calculate_psar(df, initial_af=0.02, step_af=0.02, max_af=0.2):
     # 初期設定
