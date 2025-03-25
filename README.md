@@ -1,7 +1,7 @@
-# Abstract about Finance_Competition
+# Abstract 
 松尾・岩澤研で行われているファイナンス機械学習でのコンペで使用したコード
 
-# Explanation of Code
+# Explanation
 ## data used in code
 merged_public.csv
 
