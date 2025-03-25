@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 # mlbacktesterやB_Strategyのインポート（パッケージとして設定済みとする）
 from mlbacktester.bt import BackTester
 from mlbacktester import Scoring
-from B_Strategy.strategy import Strategy
+from B_Strategy import Strategy 
 
 # グローバル設定（バックテスト用）
 BACKTEST_CONFIG = {
