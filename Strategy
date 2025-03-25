@@ -1,1 +1,81 @@
 
+def get_orders(self, latest_timestamp, latest_bar, latest_signal, asset_info):
+    """
+    注文時刻，その時刻におけるポジションの状況，OHLCVから得たシグナルを元に注文を作成する関数
+
+    Parameters
+    ==========
+    latest_timestamp: pandas.Timestamp
+        注文を出す時刻
+    latest_bar: pandas.Series
+        注文を出す時刻のOHLCVデータ(加工前のデータ)
+    latest_signal: pandas.Series
+        注文を出す時刻のシグナルデータ(get_signal関数により作成されたデータ)
+    asset_info: dict
+        注文時における資産の情報が格納された辞書
+
+    Returns
+    =======
+    order_lst: list (中身はOrderクラス)
+        current_timeにおける注文情報が格納されている
+        'type','side','size','price'の４項目
+    """
+
+    order_lst = []
+    d = 0.35  # 離散化の程度
+    size_ratio = {"BTCUSDT": 0.1, "ETHUSDT": 1.5, "XRPUSDT": 4000}  # BTC:ETH:XRP の注文サイズ比
+
+    # 各シンボルのボラティリティからリスクウェイトを計算
+    volatilities = {symbol: latest_signal.loc[(slice(None), symbol), :].iloc[0]["volatility"]
+                    for symbol in self.cfg["backtester_config"]["symbol"]}
+    total_inv_vol = sum(1 / vol for vol in volatilities.values())
+    risk_weights = {symbol: (1 / vol) / total_inv_vol for symbol, vol in volatilities.items()}
+
+    for symbol in self.cfg["backtester_config"]["symbol"]:
+        # シンボルごとの最新のシグナルとOHLCVデータを取得
+        latest_signal_symbol = latest_signal.loc[(slice(None), symbol), :].iloc[0]
+        latest_bar_symbol = latest_bar.loc[(slice(None), symbol), :].iloc[0]
+
+        # 現在のポジションサイズを取得
+        pos_size = asset_info.signed_pos_sizes[symbol]
+        total_pos_abs = abs(pos_size)
+
+        # シグナルと離散化の程度を基に目標ポジションサイズを計算
+        signal_value = latest_signal_symbol['signal']
+        if pd.isna(signal_value):
+            signal_value = 0.0
+        if signal_value > 0:
+            target_position_size = math.floor(signal_value / d) * 0.5
+        else:
+            target_position_size = math.ceil(signal_value / d) * 0.5
+
+        # 目標ポジションサイズに応じて年率リスクターゲットを設定
+        match target_position_size:
+            case 1:
+                annualized_risk_target = 0.5
+            case 0.5:
+                annualized_risk_target = 0.25
+            case -0.5:
+                annualized_risk_target = -0.25
+            case -1:
+                annualized_risk_target = -0.5
+            case _:
+                annualized_risk_target = 0
+
+        # シンボルごとの最新ボラティリティを取得
+        relevant_vola = latest_signal_symbol["volatility"]
+
+        # リスクウェイトとサイズ比を考慮して目標サイズを計算
+        target_size = (annualized_risk_target / relevant_vola) * size_ratio[symbol] * risk_weights[symbol]
+        order_size = target_size - pos_size
+        side = "BUY" if order_size > 0 else "SELL"
+
+        # 最小取引単位を満たす場合のみ注文を追加
+        if abs(order_size) >= self.cfg["exchange_config"][symbol]["min_lot"]:
+            order_lst.append(Order(type="MARKET",
+                                    side=side,
+                                    size=abs(order_size),
+                                    price=None,
+                                    symbol=symbol))
+
+    return order_lst
