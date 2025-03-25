@@ -1,21 +1,15 @@
-# Finance_Competition
+# Abstract about Finance_Competition
 松尾・岩澤研で行われているファイナンス機械学習でのコンペで使用したコード
 
-## data
+# Explanation of Code
+## data used in code
 merged_public.csv
 
-## Library
-
-# Strategy
+## A_Library
 ライブラリのインポート, mlbacktester, requirement
-## preprocessed
-前処理
-## get_model
 
-## get_signal
-## get_orders
-運営から決められたコード
+## B_Strategy
+preprocessed(前処理)、get_model、get_signal、get_orders（運営から決められたコード）
 
-# Check 
-## VisualizationとScoringで可視化と点数化
-運営から決められたコード
+## C_Visualization and C_Scoring
+可視化と点数化(運営から決められたコード)
