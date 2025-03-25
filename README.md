@@ -2,7 +2,7 @@
 松尾・岩澤研で行われているファイナンス機械学習でのコンペで使用したコード/n
 
 ## Library
-ライブラリのインポート
+ライブラリのインポート, mlbacktester, requirement
 ## preprocessed
 前処理
 ## get_model
