@@ -1,5 +1,5 @@
 # Finance_Competition
-松尾・岩澤研で行われているファイナンス機械学習でのコンペで使用したコード/n
+松尾・岩澤研で行われているファイナンス機械学習でのコンペで使用したコード
 
 ## Library
 ライブラリのインポート, mlbacktester, requirement
